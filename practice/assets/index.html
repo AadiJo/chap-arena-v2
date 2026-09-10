@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>chap-arena-v2</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>chap-arena-v2</h1>
+      <nav aria-label="Main navigation">
+        <a href="/" id="stations-link">Stations</a>
+        <a href="/settings" id="settings-link">Settings</a>
+      </nav>
+    </header>
+    <noscript>Enable JavaScript to configure the network.</noscript>
+    <p id="message" role="alert" hidden></p>
+    <section id="stations-page" aria-label="Stations">
+      <form id="stations-form">
+        <fieldset id="stations-controls" disabled>
+          <div class="split">
+            <div>
+              <table>
+                <thead><tr><th scope="col">Station</th><th scope="col">Team number</th><th scope="col">Password</th></tr></thead>
+                <tbody id="stations"></tbody>
+              </table>
+              <p class="hint">Empty stations are cleared when you apply.</p>
+            </div>
+            <aside aria-label="Password editor">
+              <label for="common-password">Common password</label>
+              <div class="password-input">
+                <input id="common-password" type="password" maxlength="63" autocomplete="off" spellcheck="false">
+                <button type="button" id="show-passwords" class="text-button" aria-pressed="false">Show</button>
+              </div>
+              <p class="hint">Used by every team without an override.</p>
+              <div id="team-editor">
+                <h2 id="editor-title">Team password</h2>
+                <p id="editor-empty" class="hint">Enter a team number, then select its password.</p>
+                <div id="override-controls" hidden>
+                  <label for="override-password">Password override</label>
+                  <input id="override-password" type="password" maxlength="63" autocomplete="off" spellcheck="false" placeholder="Use common password">
+                  <p id="override-help" class="hint"></p>
+                  <button type="button" id="clear-override" class="text-button">Use common password</button>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <footer>
+            <div id="apply-status" role="status" aria-live="polite">
+              <p id="summary">Loading configuration...</p>
+              <dl><div><dt>AP</dt><dd id="ap-status">Not applied</dd></div><div><dt>Switch</dt><dd id="switch-status">Not applied</dd></div></dl>
+              <p id="ap-detail" class="hint" hidden></p>
+              <p id="switch-detail" class="hint" hidden></p>
+            </div>
+            <button type="submit" class="primary" id="apply-button">Apply</button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+    <section id="settings-page" aria-labelledby="settings-title" hidden>
+      <h2 id="settings-title">Networking</h2>
+      <form id="settings-form">
+        <fieldset id="settings-controls" disabled>
+          <div class="settings-fields">
+            <div class="settings-row"><label for="networkSecurityEnabled">Enable advanced network security</label><input type="checkbox" id="networkSecurityEnabled" name="networkSecurityEnabled"></div>
+            <div class="settings-row"><label for="apAddress">AP Address</label><input type="text" id="apAddress" name="apAddress" placeholder="10.0.100.2" autocomplete="off" spellcheck="false"></div>
+            <div class="settings-row"><label for="apPassword">AP API Password</label><input type="password" id="apPassword" name="apPassword" autocomplete="off"></div>
+            <div class="settings-row"><label for="apChannel">AP Channel (6 GHz)</label><select id="apChannel" name="apChannel"></select></div>
+            <div class="settings-row"><label for="switchAddress">Switch Address</label><input type="text" id="switchAddress" name="switchAddress" placeholder="10.0.100.3" autocomplete="off" spellcheck="false"></div>
+            <div class="settings-row"><label for="switchPassword">Switch Password</label><input type="password" id="switchPassword" name="switchPassword" autocomplete="off"></div>
+          </div>
+          <footer><p class="hint" id="settings-summary">Save settings, then apply from Stations.</p><button type="submit" class="primary">Save</button></footer>
+        </fieldset>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

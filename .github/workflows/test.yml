@@ -11,7 +11,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build
-        run: go build
+        run: go build -o chap-arena-v2
       - name: Test
         run: go test ./...
       - name: Check formatting

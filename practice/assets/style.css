@@ -1,0 +1,66 @@
+:root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #000; color: #fff; font-size: 14px; line-height: 1.5; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+main { max-width: 1060px; margin: auto; padding: 0 32px 40px; }
+header { display: flex; align-items: center; gap: 24px; padding: 22px 0; border-bottom: 1px solid #333; margin-bottom: 30px; }
+h1 { font-size: 18px; font-weight: 650; letter-spacing: -.4px; margin: 0; }
+h2 { font-size: 15px; font-weight: 600; margin: 0 0 16px; }
+nav { display: flex; gap: 24px; margin-left: auto; }
+a { color: inherit; text-decoration: none; padding: 5px 0; }
+a[aria-current="page"] { border-bottom: 2px solid #fff; }
+label { display: block; margin-bottom: 7px; }
+button, input, select { font: inherit; }
+button { color: #fff; background: #000; border: 1px solid #555; border-radius: 3px; cursor: pointer; padding: 8px 14px; }
+button.primary { background: #fff; color: #000; border-color: #fff; font-weight: 650; min-width: 104px; }
+button.text-button { border: 0; padding: 4px 0; text-decoration: underline; text-underline-offset: 4px; font-size: 13px; }
+button:disabled { cursor: default; opacity: .55; }
+input, select { background: #0b0b0b; color: #fff; border: 1px solid #555; border-radius: 3px; padding: 8px 10px; min-width: 0; width: 100%; }
+input::placeholder { color: #999; }
+input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: #fff; }
+fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.split { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); gap: 32px; }
+aside { border-left: 1px solid #333; padding-left: 28px; }
+.password-input { display: flex; gap: 12px; align-items: center; }
+.password-input input { flex: 1; }
+#team-editor { margin-top: 26px; padding-top: 22px; border-top: 1px solid #333; }
+.hint { color: #aaa; font-size: 12px; margin: 8px 0 0; }
+#clear-override { margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+thead th { color: #aaa; font-size: 12px; font-weight: 500; padding: 0 12px 10px; }
+tbody th, td { border-top: 1px solid #292929; padding: 11px 12px; }
+tbody th { font-size: 14px; font-weight: 550; white-space: nowrap; }
+.team-number { max-width: 130px; font-variant-numeric: tabular-nums; }
+.red { color: #ff8d8d; }
+.blue { color: #8dbaff; }
+.selected { background: #101010; }
+.selected th { box-shadow: inset 2px 0 #fff; }
+.unassigned { color: #999; font-size: 12px; }
+footer { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin-top: 28px; padding-top: 18px; border-top: 1px solid #333; }
+footer .primary { margin-left: auto; }
+#summary { margin: 0 0 5px; font-size: 13px; }
+dl { display: flex; gap: 25px; flex-wrap: wrap; margin: 0; font-size: 12px; }
+dl div { display: flex; gap: 10px; }
+dt { color: #aaa; }
+dd { margin: 0; }
+[data-state="failed"], #message { color: #ffaaa2; }
+[data-state="applied"], [data-state="accepted"] { color: #a5d7a9; }
+[data-state="pending"], [data-state="applying"] { color: #edcf8f; }
+#message { border-left: 2px solid #ffaaa2; padding-left: 12px; margin-bottom: 24px; white-space: pre-wrap; }
+.settings-fields { max-width: 750px; }
+.settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: center; padding: 13px 0; border-bottom: 1px solid #292929; }
+.settings-row label { margin: 0; }
+@media (max-width: 700px) {
+  main { padding: 0 16px 30px; }
+  header { gap: 15px; padding: 18px 0; flex-wrap: wrap; }
+  h1 { font-size: 16px; }
+  nav { gap: 18px; }
+  .split { grid-template-columns: 1fr; gap: 24px; }
+  aside { border-left: 0; border-top: 1px solid #333; padding: 22px 0 0; }
+  thead th, tbody th, td { padding-left: 8px; padding-right: 8px; }
+  .team-number { max-width: 110px; }
+  .settings-row { grid-template-columns: 1fr; gap: 8px; }
+  .settings-row:first-child { grid-template-columns: 1fr auto; }
+  footer { gap: 14px; }
+}

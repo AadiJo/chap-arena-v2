@@ -1,148 +1,91 @@
-Cheesy Arena [![Build Status](https://github.com/Team254/cheesy-arena/actions/workflows/test.yml/badge.svg)](https://github.com/Team254/cheesy-arena/actions)
-============
-A field management system that just works.
+# chap-arena-v2
 
-For the game-agnostic version, see [Cheesy Arena Lite](https://github.com/Team254/cheesy-arena-lite).
+Configure a practice field's access point and Cisco switch from one page. Enter
+team numbers directly into the six station slots, set a common Wi-Fi password,
+and press **Apply**. Each team's Driver Station controls robot operation.
 
-## Key features
+This is a networking-only fork of [Cheesy Arena](https://github.com/Team254/cheesy-arena).
+It does not start FMS listeners, match control, scoring, TBA publishing, displays,
+team signs, or SCC switch management.
 
-**For participants and spectators**
+## Run from source
 
-* Same network isolation and security as the official FIRST FMS
-* No-lag realtime scoring
-* Team stack lights and seven-segment display are replaced by an LCD screen, which shows team info before the match and
-  realtime scoring and timer during the match
-* Smooth-scrolling rankings display
-* Direct publishing of schedule, results, and rankings to The Blue Alliance
+1. Install the Go version specified in [go.mod](go.mod).
+2. Clone this repository and open a terminal in its directory.
+3. Build and run the application:
 
-**For scorekeepers and event staff**
+   ```sh
+   go build -o chap-arena-v2
+   ./chap-arena-v2
+   ```
 
-* Runs on Windows, macOS, and Linux
-* No install prerequisites
-* No "pre-start" &ndash; hardware is configured automatically and in the background
-* Flexible and quick match schedule generation
-* Streamlined realtime score entry
-* Reports, results, and logs can be viewed from any computer
-* An arbitrary number of auxiliary displays can be set up using any computer with just a web browser, to show rankings,
-  queueing, field status, etc.
+   On Windows, build with `go build -o chap-arena-v2.exe` and run `chap-arena-v2.exe`.
 
-## License
+4. Open the server computer's address on port `8080` in your browser.
 
-Teams may use Cheesy Arena freely for practice, scrimmages, and off-season events. See [LICENSE](LICENSE) for more
-details.
+The binary includes its web assets. It creates `chap-arena.db` in the working
+directory. Use `-db /path/to/chap-arena.db` to choose a different database, or
+`-listen :8081` to choose a different HTTP port. Stop the application before
+copying its database to another computer.
 
-## Installing
+## Configure the network
 
-**From a pre-built release**
+Use the Vivid-Hosting field AP and main Cisco switch from Cheesy Arena's
+[advanced networking setup](https://github.com/Team254/cheesy-arena/wiki/Configuring-New-Networking-Equipment#advanced-networking).
+The existing [switch configuration](switch_config.txt) remains the starting point
+for the Cisco switch. No additional red or blue SCC switches are required.
 
-Download the [latest release](https://github.com/Team254/cheesy-arena/releases). Pre-built packages are available for
-Linux, macOS (x64 and M1), and Windows.
+1. Open **Settings** and enter the AP address, API password, channel, switch
+   address, and switch password. Keep **Enable advanced network security** checked.
+2. Click **Save**, then return to **Stations**. Saving settings does not contact hardware.
+3. Set the common password. Passwords must contain 8 to 63 printable ASCII characters.
+4. Enter team numbers in the station slots. A blank slot clears that station's
+   team Wi-Fi configuration and switch IP/DHCP configuration when you apply.
+5. To use a different password for a team, click **Common** beside its number
+   and enter a password override. Click **Use common password** to remove an override.
+6. Click **Apply** and check both device results. If either device fails, correct
+   the connection or settings, then click **Apply** to retry.
 
-On recent versions of macOS, you may be prevented from running an app from an unidentified developer;
-see [these instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac)
-on how to bypass the warning.
+The AP uses each team number as its SSID. Program each robot radio separately
+with that team number and the corresponding password. Apply configures the field
+AP and switch; it does not program robot radios.
 
-**From source**
+Team numbers can be entered without creating a team roster. Each override follows
+its team number across stations and remains saved when the team is removed.
+Changing the common password affects teams without overrides. Duplicate team
+assignments are rejected. The existing switch addressing scheme supports team
+numbers from 1 to 25599.
 
-1. Download [Go](https://golang.org/dl/) (version 1.26 or later required)
-1. Clone this GitHub repository to a location of your choice
-1. Navigate to the repository's directory in the terminal
-1. Compile the code with `go build`
-1. Run the `cheesy-arena` or `cheesy-arena.exe` binary
-1. Navigate to http://localhost:8080 in your browser (Google Chrome recommended)
+## Apply results
 
-**IP address configuration**
+**AP Accepted** means the AP accepted the request and is applying it asynchronously.
+The application does not verify that the AP finished applying the request.
+**Switch Applied** means the Cisco configuration commands completed without a
+reported command error. Neither result verifies the robot's connection.
 
-When running Cheesy Arena on a playing field with robots, set the IP address of the computer running Cheesy Arena to
-10.0.100.5. By a convention baked into the FRC Driver Station software, driver stations will broadcast their presence on
-the network to this hardcoded address so that the FMS does not need to discover them by some other method.
+If one device fails, the other device may already have changed. Apply does not
+roll back partial changes. It saves assignments and passwords before contacting
+hardware, so you can retry after a connection failure or application restart.
 
-When running Cheesy Arena without robots for testing or development, pass the `-dev` flag to bind driver station
-listeners to any local IP address.
+Only an explicit **Apply** changes hardware. Opening a page, saving settings,
+and restarting the application do not configure either device. After a restart,
+device results return to **Not applied** until the next Apply.
 
-## Under the hood
+## Development
 
-Cheesy Arena is written using [Go](https://golang.org), a language developed by Google and first released in 2009. Go
-excels in the areas of concurrency, networking, performance, and portability, which makes it ideal for a field
-management system.
+```sh
+go fmt ./...
+go test ./...
+go test -race ./practice ./network -run 'TestApply|TestAPFailure|TestDisabled|TestSwitchRejects|TestSwitchConnection'
+```
 
-Cheesy Arena is implemented as a web server, with all human interaction done via browser. The graphical interfaces are
-implemented in HTML, JavaScript, and CSS. There are many advantages to this approach &ndash; development of new
-graphical elements is rapid, and no software needs to be installed other than on the server. Client web pages send
-commands and receive updates using WebSockets.
+`practice/` owns the two-page application and Apply flow. It reuses the AP and
+Cisco protocols in `network/` and BoltDB persistence in `model/`. Legacy event
+packages remain in the source tree but are not started or exposed by this binary.
 
-[Bolt](https://github.com/etcd-io/bbolt) is used as the datastore, and making backups or transferring data from one
-installation to another is as simple as copying the database file.
+## License and attribution
 
-Schedule generation is fast because pre-generated schedules are included with the code. Each schedule contains a certain
-number of matches per team for placeholder teams 1 through N, so generating the actual match schedule becomes a simple
-exercise in permuting the mapping of real teams to placeholder teams. The pre-generated schedules are checked into this
-repository and can be vetted in advance of any events for deviations from the randomness (and other) requirements.
-
-Cheesy Arena includes support for, but doesn't require, networking hardware similar to that used in official FRC events.
-Teams are issued their own SSIDs and WPA keys, and when connected to Cheesy Arena are isolated to a VLAN which prevents
-any communication other than between the driver station, robot, and event server. The network hardware is reconfigured
-via SSH and Telnet commands for the new set of teams when each mach is loaded.
-
-## PLC integration
-
-Cheesy Arena has the ability to integrate with an Allen-Bradley PLC setup similar to the one that FIRST uses, to read
-field sensors and control lights and motors. The PLC hardware travels with the FIRST California fields; contact your FTA
-for more information.
-
-The PLC code can be found [here](https://github.com/ejordan376/Cheesy-PLC).
-
-## Team Sign integration
-
-Cheesy Arena has the ability to integrate with
-the [Cypress Team Signs](https://cypressintegration.com/customsolutions/teamdisplay/) used at official FRC events. See
-the [Configuring Cheesy Arena wiki page](https://github.com/Team254/cheesy-arena/wiki/Configuring-Cheesy-Arena-Settings#team-signs)
-for details configurating the team signs in Cheesy Arena.
-
-## DMX Lighting integration
-
-Cheesy Arena has the ability to integrate with DMX lighting hardware like what's used at official FRC events.
-See the [DMX Lighting Setup wiki page](https://github.com/Team254/cheesy-arena/wiki/DMX-Lighting-Setup) for details.
-
-## LED hardware
-
-Due to the prohibitive cost of the LEDs and LED controllers used on official fields, for years in which LEDs are
-mandatory for a proper game experience (such as 2018), Cheesy Arena integrates
-with [Advatek](https://www.advateklights.com) controllers and LEDs.
-
-## Advanced networking
-
-See the [Advanced Networking wiki page](https://github.com/Team254/cheesy-arena/wiki/Advanced-Networking-Concepts) for
-instructions on what equipment to obtain and how to configure it in order to support advanced network security.
-
-## Contributing
-
-Cheesy Arena is far from finished! You can help by:
-
-* Writing a missing feature, and sending a pull request
-* Filing any bugs or feature requests using the [issue tracker](https://github.com/Team254/cheesy-arena/issues)
-* Contributing documentation to the [wiki](https://github.com/Team254/cheesy-arena/wiki)
-* Sending baked goods to [Pat](https://github.com/patfair)
-
-## Acknowledgements
-
-[Several folks](https://github.com/Team254/cheesy-arena/graphs/contributors) have contributed pull requests. Thanks!
-
-In addition, the following individuals have contributed to make Cheesy Arena a reality:
-
-* Tom Bottiglieri
-* James Cerar
-* Kiet Chau
-* Travis Covington
-* Nick Eyre
-* Patrick Fairbank
-* Eugene Fang
-* Thad House
-* Ed Jordan
-* Karthik Kanagasabapathy
-* Ken Mitchell
-* Andrew Nabors
-* Jared Russell
-* Ken Schenke
-* Austin Schuh
-* Colin Wilson
+Cheesy Arena was created by Team 254 and its
+[contributors](https://github.com/Team254/cheesy-arena/graphs/contributors).
+The original [LICENSE](LICENSE) applies, including its restrictions on
+redistributing modifications.

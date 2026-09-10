@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"github.com/Team254/cheesy-arena/model"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,6 +22,7 @@ const (
 	switchConfigPauseDurationSec   = 2
 	switchTeamGatewayAddress       = 4
 	switchTelnetPort               = 23
+	switchCommandTimeout           = 15 * time.Second
 )
 
 const (
@@ -38,6 +41,7 @@ type Switch struct {
 	mutex                 sync.Mutex
 	configBackoffDuration time.Duration
 	configPauseDuration   time.Duration
+	commandTimeout        time.Duration
 	Status                string
 }
 
@@ -53,6 +57,7 @@ func NewSwitch(address, password string) *Switch {
 		password:              password,
 		configBackoffDuration: switchConfigBackoffDurationSec * time.Second,
 		configPauseDuration:   switchConfigPauseDurationSec * time.Second,
+		commandTimeout:        switchCommandTimeout,
 		Status:                "UNKNOWN",
 	}
 }
@@ -131,13 +136,16 @@ func (sw *Switch) ConfigureTeamEthernet(teams [6]*model.Team) error {
 // returns it as a string.
 func (sw *Switch) runCommand(command string) (string, error) {
 	// Open a Telnet connection to the switch.
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", sw.address, sw.port))
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(sw.address, strconv.Itoa(sw.port)), sw.commandTimeout)
 	if err != nil {
 		return "", err
 	}
 	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(sw.commandTimeout)); err != nil {
+		return "", err
+	}
 
-	// Login to the AP, send the command, and log out all at once.
+	// Log into the switch, send the command, and log out all at once.
 	writer := bufio.NewWriter(conn)
 	_, err = writer.WriteString(
 		fmt.Sprintf(
@@ -159,7 +167,17 @@ func (sw *Switch) runCommand(command string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return reader.String(), nil
+	response := reader.String()
+	// IOS can reject a command or password and still close the connection cleanly.
+	for _, line := range strings.Split(response, "\n") {
+		lower := strings.ToLower(strings.TrimSpace(line))
+		for _, failure := range []string{"% invalid", "% incomplete", "% ambiguous", "% error", "% bad passwords", "% access denied", "% authorization failed", "password required", "authentication failed"} {
+			if strings.Contains(lower, failure) {
+				return "", fmt.Errorf("switch rejected configuration; check its credentials and IOS console")
+			}
+		}
+	}
+	return response, nil
 }
 
 // Logs into the switch via Telnet and runs the given command in global configuration mode. Reads the output

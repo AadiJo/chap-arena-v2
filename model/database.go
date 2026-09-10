@@ -30,6 +30,7 @@ type Database struct {
 	lowerThirdTable     *table[LowerThird]
 	matchTable          *table[Match]
 	matchResultTable    *table[MatchResult]
+	practiceConfigTable *table[PracticeConfig]
 	rankingTable        *table[game.Ranking]
 	scheduleBlockTable  *table[ScheduleBlock]
 	scheduledBreakTable *table[ScheduledBreak]
@@ -67,6 +68,9 @@ func OpenDatabase(filename string) (*Database, error) {
 		return nil, err
 	}
 	if database.matchResultTable, err = newTable[MatchResult](&database); err != nil {
+		return nil, err
+	}
+	if database.practiceConfigTable, err = newTable[PracticeConfig](&database); err != nil {
 		return nil, err
 	}
 	if database.rankingTable, err = newTable[game.Ranking](&database); err != nil {

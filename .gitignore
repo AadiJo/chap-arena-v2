@@ -3,6 +3,7 @@
 *.a
 *.so
 cheesy-arena
+chap-arena-v2
 
 # Folders
 _obj

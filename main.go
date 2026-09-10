@@ -5,29 +5,28 @@ package main
 
 import (
 	"flag"
-	"github.com/Team254/cheesy-arena/field"
-	"github.com/Team254/cheesy-arena/network"
-	"github.com/Team254/cheesy-arena/web"
+	"github.com/Team254/cheesy-arena/model"
+	"github.com/Team254/cheesy-arena/practice"
 	"log"
+	"net/http"
+	"time"
 )
 
-const eventDbPath = "./event.db"
-const httpPort = 8080
-
-// Main entry point for the application.
 func main() {
-	flag.BoolVar(&network.DevMode, "dev", false, "Bind driver station listeners to all IP addresses for development")
+	address := flag.String("listen", ":8080", "HTTP listen address")
+	dbPath := flag.String("db", "chap-arena.db", "Configuration database path")
 	flag.Parse()
 
-	arena, err := field.NewArena(eventDbPath)
+	database, err := model.OpenDatabase(*dbPath)
 	if err != nil {
-		log.Fatalln("Error during startup: ", err)
+		log.Fatal(err)
 	}
-
-	// Start the web server in a separate goroutine.
-	web := web.NewWeb(arena)
-	go web.ServeWebInterface(httpPort)
-
-	// Run the arena state machine in the main thread.
-	arena.Run()
+	defer database.Close()
+	app, err := practice.NewServer(database)
+	if err != nil {
+		log.Fatal(err)
+	}
+	server := &http.Server{Addr: *address, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	log.Printf("chap-arena-v2 listening on %s", *address)
+	log.Fatal(server.ListenAndServe())
 }
