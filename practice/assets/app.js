@@ -6,6 +6,7 @@ const networkFields = ["networkSecurityEnabled", "apAddress", "apPassword", "apC
 const stationInputs = [];
 const stationButtons = [];
 const stationRows = [];
+const radioLabels = [];
 let config;
 let draft;
 let selectedStation = 0;
@@ -14,9 +15,11 @@ let settingsDirty = false;
 let busy = false;
 let status = { applying: false, ap: { state: "idle" }, switch: { state: "idle" } };
 let pollTimer;
+let pollGeneration = 0;
+let monitorAvailable = false;
 
 async function request(path, body) {
-  const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
+  const response = await fetch(path, body === undefined ? { cache: "no-store", signal: AbortSignal.timeout(5000) } : {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -81,46 +84,108 @@ function renderEditor() {
   renderSources();
 }
 
+function renderRadios() {
+  if (!draft) return;
+  const labels = { linked: "Radio linked", missing: "No radio", mismatch: "Wrong team", unconfigured: "Not configured", checking: "Checking", unknown: "Unknown", empty: "Empty", "not-applied": "Not applied" };
+  let assigned = 0;
+  let linked = 0;
+  stationInputs.forEach((input, index) => {
+    const team = teamAt(index);
+    const radio = status.radios?.[index];
+    const savedPassword = config.overrides?.[team] || config.commonPassword;
+    const draftPassword = draft.overrides[team] || draft.commonPassword;
+    let state = "unknown";
+    if (!input.value) state = "empty";
+    else if (!team || team !== config.stations[index] || savedPassword !== draftPassword) state = "not-applied";
+    else if (!monitorAvailable || status.revision !== config.revision) state = "unknown";
+    else if (status.ap.state === "applying" || status.ap.state === "accepted") state = "checking";
+    else if (radio?.team === team) state = radio.state;
+    if (team) assigned++;
+    if (state === "linked") linked++;
+    stationRows[index].dataset.radioState = state;
+    radioLabels[index].dataset.state = state;
+    radioLabels[index].textContent = labels[state] || "Unknown";
+  });
+  byId("radio-count").textContent = `Radios ${linked} / ${assigned} linked`;
+}
+
 function renderStatus() {
   const locked = busy || status.applying || !config;
   byId("stations-controls").disabled = locked;
   byId("settings-controls").disabled = locked;
   byId("apply-button").textContent = status.applying ? "Applying..." : "Apply";
-  const labels = { idle: "Not applied", pending: "Waiting", applying: "Applying", accepted: "Accepted", applied: "Applied", failed: "Failed" };
+  const labels = { idle: "Not applied", pending: "Waiting", applying: "Applying", accepted: "Applying", applied: "Applied", active: "Active", failed: "Failed", unavailable: "Unavailable", unknown: "Unknown", disabled: "Disabled" };
   for (const device of ["ap", "switch"]) {
-    const result = status[device];
+    const result = monitorAvailable ? status[device] : { state: "unknown" };
     byId(`${device}-status`).textContent = labels[result.state] || result.state;
-    byId(`${device}-status`).dataset.state = result.state;
+    byId(`${device}-indicator`).dataset.state = result.state;
     byId(`${device}-detail`).textContent = result.detail || "";
     byId(`${device}-detail`).hidden = !result.detail;
   }
   let summary = "Saved configuration. Press Apply to configure hardware.";
-  if (status.applying) summary = "Applying configuration...";
+  if (!monitorAvailable) summary = "Waiting for server status...";
+  else if (status.applying) summary = "Applying configuration...";
   else if (dirty) summary = "Changes not applied";
+  else if (status.revision !== config?.revision) summary = "Configuration changed in another tab. Reload before applying.";
   else if (status.ap.state === "failed" || status.switch.state === "failed") summary = "Configuration incomplete. Press Apply to retry.";
-  else if (status.ap.state === "accepted" && status.switch.state === "applied") summary = "Configuration sent to both devices.";
+  else if (status.ap.state === "unavailable") summary = "AP status unavailable. Radio links are unknown.";
+  else if (status.ap.state === "applying") summary = "Waiting for the AP to become active.";
+  else if (status.ap.state === "active" && status.switch.state === "applied") summary = "AP active. Switch configuration applied.";
   if (config && !config.network.networkSecurityEnabled) summary = "Enable advanced network security in Settings before applying.";
   byId("summary").textContent = summary;
+  renderRadios();
+}
+
+function pausePolling() {
+  clearTimeout(pollTimer);
+  pollGeneration++;
 }
 
 async function pollStatus() {
-  clearTimeout(pollTimer);
+  pausePolling();
+  const generation = pollGeneration;
   try {
-    status = await request("/api/status");
-    renderStatus();
-    if (status.applying) pollTimer = setTimeout(pollStatus, 1000);
-  } catch (error) {
-    showMessage(`Unable to read device status: ${error.message}`);
-    pollTimer = setTimeout(pollStatus, 2000);
+    const next = await request("/api/status");
+    if (generation !== pollGeneration) return;
+    if (next.revision < config.revision) {
+      monitorAvailable = false;
+    } else {
+      status = next;
+      monitorAvailable = true;
+    }
+  } catch {
+    if (generation !== pollGeneration) return;
+    monitorAvailable = false;
+  } finally {
+    if (generation === pollGeneration) {
+      renderStatus();
+      pollTimer = setTimeout(pollStatus, 1000);
+    }
   }
 }
+
+// A suspended tab must refresh before showing its old radio links as current.
+document.addEventListener("visibilitychange", () => {
+  if (!config || busy) return;
+  monitorAvailable = false;
+  renderStatus();
+  if (document.hidden) pausePolling();
+  else pollStatus();
+});
 
 stationNames.forEach((name, index) => {
   const row = document.createElement("tr");
   const label = document.createElement("th");
   label.scope = "row";
-  label.className = index < 3 ? "red" : "blue";
-  label.textContent = name;
+  const stationName = document.createElement("span");
+  stationName.className = `station-name ${index < 3 ? "red" : "blue"}`;
+  stationName.textContent = name;
+  const radio = document.createElement("span");
+  radio.className = "radio-status";
+  radio.dataset.state = "empty";
+  radio.textContent = "Empty";
+  label.append(stationName, radio);
+  radioLabels.push(radio);
   const numberCell = document.createElement("td");
   const input = document.createElement("input");
   input.type = "text";
@@ -195,6 +260,7 @@ byId("stations-form").addEventListener("submit", async (event) => {
     return;
   }
   busy = true;
+  pausePolling();
   showMessage();
   renderStatus();
   try {
@@ -206,14 +272,17 @@ byId("stations-form").addEventListener("submit", async (event) => {
       overrides: draft.overrides,
     });
     config.revision = status.revision;
+    config.stations = stations;
+    config.commonPassword = draft.commonPassword;
+    config.overrides = structuredClone(draft.overrides);
     draft.stations = stations;
     dirty = false;
-    await pollStatus();
   } catch (error) {
     showMessage(error.message);
   } finally {
     busy = false;
     renderStatus();
+    pollStatus();
   }
 });
 
@@ -224,18 +293,19 @@ byId("settings-form").addEventListener("submit", async (event) => {
     key === "networkSecurityEnabled" ? byId(key).checked : key === "apChannel" ? Number(byId(key).value) : byId(key).value,
   ]));
   busy = true;
+  pausePolling();
   showMessage();
   renderStatus();
   try {
     config = await request("/api/settings", { revision: config.revision, network });
     settingsDirty = false;
     byId("settings-summary").textContent = "Settings saved. Apply from Stations to configure hardware.";
-    await pollStatus();
   } catch (error) {
     showMessage(error.message);
   } finally {
     busy = false;
     renderStatus();
+    pollStatus();
   }
 });
 
@@ -253,7 +323,7 @@ async function load() {
     }
     selectedStation = Math.max(0, config.stations.findIndex((team) => team !== 0));
     renderEditor();
-    await pollStatus();
+    pollStatus();
   } catch (error) {
     showMessage(`Could not load configuration: ${error.message}. Reload to retry.`);
   }

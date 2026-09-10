@@ -35,18 +35,29 @@ tbody th { font-size: 14px; font-weight: 550; white-space: nowrap; }
 .red { color: #ff8d8d; }
 .blue { color: #8dbaff; }
 .selected { background: #101010; }
-.selected th { box-shadow: inset 2px 0 #fff; }
+.station-name { display: block; }
+tbody th { border-left: 3px solid #666; }
+tr[data-radio-state="linked"] th { border-left-color: #39d98a; }
+tr[data-radio-state="missing"] th, tr[data-radio-state="mismatch"] th, tr[data-radio-state="unconfigured"] th { border-left-color: #ff7777; }
+tr[data-radio-state="checking"] th { border-left-color: #4fa7ff; }
+.radio-status { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; margin-top: 3px; }
+.radio-status::before { content: ""; width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
+.radio-status[data-state="linked"] { color: #39d98a; }
+.radio-status[data-state="missing"], .radio-status[data-state="mismatch"], .radio-status[data-state="unconfigured"] { color: #ff7777; }
+.radio-status[data-state="checking"] { color: #4fa7ff; }
+.radio-status[data-state="unknown"], .radio-status[data-state="empty"], .radio-status[data-state="not-applied"] { color: #999; }
 .unassigned { color: #999; font-size: 12px; }
 footer { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin-top: 28px; padding-top: 18px; border-top: 1px solid #333; }
 footer .primary { margin-left: auto; }
 #summary { margin: 0 0 5px; font-size: 13px; }
-dl { display: flex; gap: 25px; flex-wrap: wrap; margin: 0; font-size: 12px; }
-dl div { display: flex; gap: 10px; }
-dt { color: #aaa; }
-dd { margin: 0; }
-[data-state="failed"], #message { color: #ffaaa2; }
-[data-state="applied"], [data-state="accepted"] { color: #a5d7a9; }
-[data-state="pending"], [data-state="applying"] { color: #edcf8f; }
+.device-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 25px; padding-bottom: 17px; margin-bottom: 22px; border-bottom: 1px solid #333; }
+.device-status { border-left: 3px solid currentColor; padding-left: 10px; font-size: 13px; }
+.device-status strong { font-weight: 550; margin-right: 5px; }
+.device-strip .hint { margin: 0; }
+.device-status[data-state="failed"], .device-status[data-state="unavailable"], #message { color: #ff7777; }
+.device-status[data-state="applied"], .device-status[data-state="active"] { color: #39d98a; }
+.device-status[data-state="pending"], .device-status[data-state="applying"], .device-status[data-state="accepted"] { color: #4fa7ff; }
+.device-status[data-state="idle"], .device-status[data-state="disabled"], .device-status[data-state="unknown"] { color: #999; }
 #message { border-left: 2px solid #ffaaa2; padding-left: 12px; margin-bottom: 24px; white-space: pre-wrap; }
 .settings-fields { max-width: 750px; }
 .settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: center; padding: 13px 0; border-bottom: 1px solid #292929; }

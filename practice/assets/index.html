@@ -19,6 +19,11 @@
     <noscript>Enable JavaScript to configure the network.</noscript>
     <p id="message" role="alert" hidden></p>
     <section id="stations-page" aria-label="Stations">
+      <div class="device-strip" role="status" aria-live="polite">
+        <span class="device-status" id="ap-indicator" data-state="unknown"><strong>AP</strong> <span id="ap-status">Checking</span></span>
+        <span class="device-status" id="switch-indicator" data-state="idle" title="Result of the last switch configuration attempt"><strong>Switch</strong> <span id="switch-status">Not applied</span></span>
+        <span id="radio-count" class="hint"></span>
+      </div>
       <form id="stations-form">
         <fieldset id="stations-controls" disabled>
           <div class="split">
@@ -27,7 +32,7 @@
                 <thead><tr><th scope="col">Station</th><th scope="col">Team number</th><th scope="col">Password</th></tr></thead>
                 <tbody id="stations"></tbody>
               </table>
-              <p class="hint">Empty stations are cleared when you apply.</p>
+              <p class="hint">Radio shows the AP link. Empty stations are cleared when you apply.</p>
             </div>
             <aside aria-label="Password editor">
               <label for="common-password">Common password</label>
@@ -51,7 +56,6 @@
           <footer>
             <div id="apply-status" role="status" aria-live="polite">
               <p id="summary">Loading configuration...</p>
-              <dl><div><dt>AP</dt><dd id="ap-status">Not applied</dd></div><div><dt>Switch</dt><dd id="switch-status">Not applied</dd></div></dl>
               <p id="ap-detail" class="hint" hidden></p>
               <p id="switch-detail" class="hint" hidden></p>
             </div>

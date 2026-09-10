@@ -56,12 +56,27 @@ Changing the common password affects teams without overrides. Duplicate team
 assignments are rejected. The existing switch addressing scheme supports team
 numbers from 1 to 25599.
 
-## Apply results
+## Device and radio status
 
-**AP Accepted** means the AP accepted the request and is applying it asynchronously.
-The application does not verify that the AP finished applying the request.
+Blue means configuration is in progress, green means good, and red means a problem.
+Gray means unknown, disabled, empty, or not yet applied. Station edges and device
+indicators include text labels, so color is not the only indication.
+
+**AP Active** means a recent status response reports an active AP. Accepting an
+Apply request alone does not turn the AP indicator green.
 **Switch Applied** means the Cisco configuration commands completed without a
-reported command error. Neither result verifies the robot's connection.
+reported command error. Switch status records the last configuration attempt;
+it does not continuously check switch connectivity.
+
+**Radio linked** means the AP reports a wireless link for the expected team at
+that station. **No radio** means the team network exists but its radio is not
+linked. **Wrong team** or **Not configured** means the AP's station assignment
+does not match the saved team. This does not check roboRIO readiness or Driver
+Station control. Unsaved team or password edits show **Not applied**.
+
+While the page is open, it requests AP status about once per second. Failed or
+stale readings clear radio indicators to **Unknown**. Monitoring is read-only
+and never retries configuration automatically.
 
 If one device fails, the other device may already have changed. Apply does not
 roll back partial changes. It saves assignments and passwords before contacting
@@ -69,14 +84,15 @@ hardware, so you can retry after a connection failure or application restart.
 
 Only an explicit **Apply** changes hardware. Opening a page, saving settings,
 and restarting the application do not configure either device. After a restart,
-device results return to **Not applied** until the next Apply.
+AP and radio indicators refresh from live status. Switch status returns to
+**Not applied** until the next Apply.
 
 ## Development
 
 ```sh
 go fmt ./...
 go test ./...
-go test -race ./practice ./network -run 'TestApply|TestAPFailure|TestDisabled|TestSwitchRejects|TestSwitchConnection'
+go test -race ./practice ./network -run 'TestApply|TestAPFailure|TestDisabled|TestMonitor|TestAccessPointReadStatus|TestSwitchRejects|TestSwitchConnection'
 ```
 
 `practice/` owns the two-page application and Apply flow. It reuses the AP and

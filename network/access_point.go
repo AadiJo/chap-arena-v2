@@ -7,15 +7,15 @@ package network
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Team254/cheesy-arena/model"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/Team254/cheesy-arena/model"
 )
 
 const (
@@ -165,48 +165,66 @@ func (ap *AccessPoint) ConfigureTeamWifi(teams [6]*model.Team) error {
 	return nil
 }
 
-// Fetches the current access point status from the API and updates the status structure.
+// AccessPointSnapshot is an independent reading of the AP and its radio links.
+// Reading a snapshot never changes the AP configuration or starts retry loops.
+type AccessPointSnapshot struct {
+	State    string
+	Channel  int
+	Stations [6]TeamWifiStatus
+}
+
+func (ap *AccessPoint) ReadStatus(ctx context.Context) (AccessPointSnapshot, error) {
+	if !ap.networkSecurityEnabled {
+		return AccessPointSnapshot{State: "DISABLED"}, nil
+	}
+	status, err := ap.fetchStatus(ctx)
+	if err != nil {
+		return AccessPointSnapshot{}, err
+	}
+	snapshot := AccessPointSnapshot{State: status.Status, Channel: status.Channel}
+	for i, name := range []string{"red1", "red2", "red3", "blue1", "blue2", "blue3"} {
+		updateTeamWifiStatus(&snapshot.Stations[i], status.StationStatuses[name])
+	}
+	return snapshot, nil
+}
+
+func (ap *AccessPoint) fetchStatus(ctx context.Context) (*accessPointStatus, error) {
+	request, err := http.NewRequestWithContext(ctx, "GET", ap.apiUrl+"/status", nil)
+	if err != nil {
+		return nil, err
+	}
+	if ap.password != "" {
+		request.Header.Add("Authorization", "Bearer "+ap.password)
+	}
+	client := http.Client{Timeout: 3 * time.Second}
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch access point status: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode/100 != 2 {
+		body, err := io.ReadAll(io.LimitReader(response.Body, 4096))
+		if err != nil {
+			return nil, fmt.Errorf("access point returned status %d and failed to read response body: %w", response.StatusCode, err)
+		}
+		return nil, fmt.Errorf("access point returned status %d: %s", response.StatusCode, body)
+	}
+	var status accessPointStatus
+	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&status); err != nil {
+		return nil, fmt.Errorf("failed to parse access point status: %w", err)
+	}
+	return &status, nil
+}
+
+// Fetches the current access point status and updates the legacy arena's state.
 func (ap *AccessPoint) updateMonitoring() error {
 	if !ap.networkSecurityEnabled {
 		return nil
 	}
-
-	// Fetch the status from the access point API.
-	url := ap.apiUrl + "/status"
-	httpRequest, err := http.NewRequest("GET", url, nil)
+	apStatus, err := ap.fetchStatus(context.Background())
 	if err != nil {
+		ap.Status = "ERROR"
 		return err
-	}
-	if ap.password != "" {
-		httpRequest.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ap.password))
-	}
-	var httpClient http.Client
-	httpResponse, err := httpClient.Do(httpRequest)
-	if err != nil {
-		ap.Status = "ERROR"
-		return fmt.Errorf("failed to fetch access point status: %v", err)
-	}
-	defer func() {
-		if err := httpResponse.Body.Close(); err != nil {
-			log.Printf("Failed to close access point status response body: %v", err)
-		}
-	}()
-	if httpResponse.StatusCode/100 != 2 {
-		ap.Status = "ERROR"
-		body, err := io.ReadAll(httpResponse.Body)
-		if err != nil {
-			return fmt.Errorf("access point returned status %d and failed to read response body: %w",
-				httpResponse.StatusCode, err)
-		}
-		return fmt.Errorf("access point returned status %d: %s", httpResponse.StatusCode, string(body))
-	}
-
-	// Parse the response and populate the status structure.
-	var apStatus accessPointStatus
-	err = json.NewDecoder(httpResponse.Body).Decode(&apStatus)
-	if err != nil {
-		ap.Status = "ERROR"
-		return fmt.Errorf("failed to parse access point status: %v", err)
 	}
 	if ap.Status != apStatus.Status {
 		log.Printf("Access point status changed from %s to %s.", ap.Status, apStatus.Status)

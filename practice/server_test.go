@@ -2,9 +2,11 @@ package practice
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/Team254/cheesy-arena/model"
+	"github.com/Team254/cheesy-arena/network"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -29,6 +31,9 @@ func newTestServer(t *testing.T) *Server {
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	s, err := NewServer(db)
 	require.NoError(t, err)
+	s.readAP = func(context.Context, model.PracticeNetwork) (network.AccessPointSnapshot, error) {
+		return network.AccessPointSnapshot{State: "ACTIVE"}, nil
+	}
 	return s
 }
 
@@ -105,7 +110,7 @@ func TestApplyPersistsTeamOverridesAndClearsStations(t *testing.T) {
 	w = call(t, s, "POST", "/api/apply", lineup)
 	require.Equal(t, http.StatusAccepted, w.Code, w.Body.String())
 	status := waitForApply(t, s)
-	require.Equal(t, "accepted", status.AP.State)
+	require.Equal(t, "active", status.AP.State)
 	require.Equal(t, "applied", status.Switch.State)
 	configured := <-apRequests
 	require.Equal(t, 5, configured.Channel)
@@ -148,11 +153,12 @@ func TestApplyPersistsTeamOverridesAndClearsStations(t *testing.T) {
 	<-wiredRequests
 	require.Empty(t, currentConfig(t, s).Overrides)
 
-	// A new server loads the saved state without touching either device.
+	// A new server loads the saved state without reconfiguring either device.
 	restarted, err := NewServer(s.database)
 	require.NoError(t, err)
 	require.Equal(t, currentConfig(t, s), currentConfig(t, restarted))
-	require.Equal(t, "idle", waitForApply(t, restarted).AP.State)
+	restarted.readAP = s.readAP
+	require.Equal(t, "idle", waitForApply(t, restarted).Switch.State)
 	require.Empty(t, apRequests)
 	require.Empty(t, wiredRequests)
 }
@@ -218,7 +224,7 @@ func TestApplySerializesDevicesAndAllowsExplicitRetry(t *testing.T) {
 	require.Equal(t, http.StatusConflict, w.Code)
 	close(release)
 	status := waitForApply(t, s)
-	require.Equal(t, "accepted", status.AP.State)
+	require.Equal(t, "active", status.AP.State)
 	require.Equal(t, "failed", status.Switch.State)
 	require.Equal(t, "switch unavailable", status.Switch.Detail)
 	require.EqualValues(t, 1, apCalls.Load())

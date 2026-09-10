@@ -1,8 +1,9 @@
 // Package practice serves the networking-only application. It never starts the
-// arena state machine, Driver Station listeners, or hardware polling loops.
+// arena state machine or Driver Station listeners.
 package practice
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"github.com/Team254/cheesy-arena/model"
@@ -13,6 +14,7 @@ import (
 	"mime"
 	"net/http"
 	"sync"
+	"time"
 )
 
 //go:embed assets/*
@@ -37,6 +39,10 @@ type Server struct {
 	status          applyStatus
 	configureAP     func(model.PracticeNetwork, [6]*model.Team) error
 	configureSwitch func(model.PracticeNetwork, [6]*model.Team) error
+	readAP          func(context.Context, model.PracticeNetwork) (network.AccessPointSnapshot, error)
+	observation     apObservation
+	polling         bool
+	now             func() time.Time
 }
 
 func NewServer(database *model.Database) (*Server, error) {
@@ -48,6 +54,7 @@ func NewServer(database *model.Database) (*Server, error) {
 		database: database,
 		config:   *config,
 		status:   applyStatus{Revision: config.Revision, AP: deviceResult{State: "idle"}, Switch: deviceResult{State: "idle"}},
+		now:      time.Now,
 		configureAP: func(settings model.PracticeNetwork, teams [6]*model.Team) error {
 			var ap network.AccessPoint
 			ap.SetSettings(settings.ApAddress, settings.ApPassword, settings.ApChannel, true, [6]*network.TeamWifiStatus{})
@@ -55,6 +62,11 @@ func NewServer(database *model.Database) (*Server, error) {
 		},
 		configureSwitch: func(settings model.PracticeNetwork, teams [6]*model.Team) error {
 			return network.NewSwitch(settings.SwitchAddress, settings.SwitchPassword).ConfigureTeamEthernet(teams)
+		},
+		readAP: func(ctx context.Context, settings model.PracticeNetwork) (network.AccessPointSnapshot, error) {
+			var ap network.AccessPoint
+			ap.SetSettings(settings.ApAddress, settings.ApPassword, settings.ApChannel, settings.NetworkSecurityEnabled, [6]*network.TeamWifiStatus{})
+			return ap.ReadStatus(ctx)
 		},
 	}, nil
 }
@@ -90,9 +102,10 @@ func (s *Server) getConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
+	s.refreshAP(r.Context())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	writeJSON(w, http.StatusOK, s.status)
+	writeJSON(w, http.StatusOK, s.liveStatus())
 }
 
 func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
