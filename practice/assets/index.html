@@ -10,7 +10,7 @@
 <body>
   <main>
     <header>
-      <h1>chap-arena-v2</h1>
+      <a class="brand" href="/" aria-label="chap-arena-v2 home"><img src="/assets/chap-bird.png" alt="chap-arena-v2"></a>
       <nav aria-label="Main navigation">
         <a href="/" id="stations-link">Stations</a>
         <a href="/settings" id="settings-link">Settings</a>
@@ -32,7 +32,7 @@
                 <thead><tr><th scope="col">Station</th><th scope="col">Team number</th><th scope="col">Password</th></tr></thead>
                 <tbody id="stations"></tbody>
               </table>
-              <p class="hint">Radio shows the AP link. Empty stations are cleared when you apply.</p>
+              <p class="hint">Radio shows the AP link.</p>
             </div>
             <aside aria-label="Password editor">
               <label for="common-password">Common password</label>
@@ -76,7 +76,7 @@
             <div class="settings-row"><label for="switchAddress">Switch Address</label><input type="text" id="switchAddress" name="switchAddress" placeholder="10.0.100.3" autocomplete="off" spellcheck="false"></div>
             <div class="settings-row"><label for="switchPassword">Switch Password</label><input type="password" id="switchPassword" name="switchPassword" autocomplete="off"></div>
           </div>
-          <footer><p class="hint" id="settings-summary">Save settings, then apply from Stations.</p><button type="submit" class="primary">Save</button></footer>
+          <footer><button type="submit" class="primary">Save</button></footer>
         </fieldset>
       </form>
     </section>

@@ -248,7 +248,6 @@ byId("show-passwords").addEventListener("click", (event) => {
 });
 byId("settings-form").addEventListener("input", () => {
   settingsDirty = true;
-  byId("settings-summary").textContent = "Settings not saved";
   showMessage();
 });
 
@@ -299,7 +298,6 @@ byId("settings-form").addEventListener("submit", async (event) => {
   try {
     config = await request("/api/settings", { revision: config.revision, network });
     settingsDirty = false;
-    byId("settings-summary").textContent = "Settings saved. Apply from Stations to configure hardware.";
   } catch (error) {
     showMessage(error.message);
   } finally {
